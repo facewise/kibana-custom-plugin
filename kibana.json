@@ -1,0 +1,9 @@
+{
+  "id": "study",
+  "version": "1.0.0",
+  "kibanaVersion": "kibana",
+  "server": false,
+  "ui": true,
+  "requiredPlugins": ["data"],
+  "optionalPlugins": []
+}
