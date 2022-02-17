@@ -2,6 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { i18n } from '@kbn/i18n';
 import { FormattedMessage, I18nProvider } from '@kbn/i18n/react';
 import { BrowserRouter as Router } from 'react-router-dom';
+import { Config } from '../../config';
+import { CoreStart } from '../../../../src/core/public';
+import { PLUGIN_ID, PLUGIN_NAME } from '../../common';
+
+import {
+  DataPublicPluginStart,
+  IndexPattern,
+  ISearchSource,
+  SortDirection,
+} from '../../../../src/plugins/data/public';
 
 import {
   EuiButton,
@@ -19,11 +29,6 @@ import {
   EuiIcon,
 } from '@elastic/eui';
 
-import { CoreStart } from '../../../../src/core/public';
-
-import { PLUGIN_ID, PLUGIN_NAME } from '../../common';
-import { DataPublicPluginStart, IndexPattern, ISearchSource, SortDirection } from '../../../../src/plugins/data/public';
-
 interface StudyAppDeps {
   basename: string;
   notifications: CoreStart['notifications'];
@@ -39,17 +44,20 @@ export const StudyApp = ({ basename, notifications, data, http }: StudyAppDeps) 
   // Create searchSource and find index patterns.
   const call = async () => {
     searchSource = await data.search.searchSource.create();
-    [indexPattern] = await data.indexPatterns.find('heartbeat-7.11.1*');
-  }
+    [indexPattern] = await data.indexPatterns.find(Config.indexPattern);
+  };
 
   call();
   // Use React hooks to manage state.
   // const [hits, setHits] = useState<Array<Record<string, any>>>();
-  const [color, setColor] = useState<string>('#999999');
+  const [color, setColor] = useState<string>(Config.color.default);
 
   // Use useEffect function to manage the lifecycle.
   useEffect(() => {
-    data.query.timefilter.timefilter.setRefreshInterval({ pause: false, value: 5000 });
+    data.query.timefilter.timefilter.setRefreshInterval({
+      pause: false,
+      value: Config.refreshIntervalValue,
+    });
     // autoRefreshFetch$ makes a stream every {refreshInterval.value} milliseconds.
     const autoRefreshFetch$ = data.query.timefilter.timefilter.getAutoRefreshFetch$();
 
@@ -61,47 +69,39 @@ export const StudyApp = ({ basename, notifications, data, http }: StudyAppDeps) 
         .setField('size', 1)
         .setField('query', {
           query: {
-            'match': {
-              'monitor.ip': '192.168.88.142'
-            }
+            match: {
+              'monitor.ip': Config.monitor[0],
+            },
           },
-          language: 'lucene'
+          language: 'lucene',
         })
         .setField('sort', { '@timestamp': SortDirection.desc })
         .fetch()
         .then((response) => {
           // setHits(res.hits.hits);
-          setColor(response.hits.hits[0]._source.summary.up === 1 ? 'green' : 'red');
-        })
+          setColor(
+            response.hits.hits[0]._source.summary.up === 1 ? Config.color.up : Config.color.down
+          );
+        });
     });
     // This return phrase is called when the element is unmounted from DOM.
     return () => {
-      data.query.timefilter.timefilter.setRefreshInterval({ pause: true })
-    }
+      data.query.timefilter.timefilter.setRefreshInterval({ pause: true });
+    };
   }, []);
 
-  const onClickHandler = async () => {
-  //   const headers = new Headers({
-  //     'Content-Type': 'application/x-www-form-urlencode',
-  //     'withCredentials': 'true'
-  //   });
-  //   headers.append('Authorization', 'Basic ' + btoa('admin:11339ef458faccb0442f49eb18d10367fe'));
-    // headers.append('Origin', 'https://192.168.88.148');
-    await fetch('http://192.168.88.142:9090/buildByToken/build?job=study&token=PLEASERESTART', {
-      method: "POST",
-      mode: 'no-cors'
+  const onClickHandler = () => {
+    fetch('http://192.168.88.142:9090/buildByToken/build?job=study&token=PLEASERESTART', {
+      method: 'POST',
+      mode: 'no-cors',
     })
-    .then((response) => {
-      // if(response.status >= 200 && response.status < 300) {
-      //   alert('Succeed')
-      // } else {
-      //   alert('Failed')
-      // }
-    })
-    .catch((error) => {
-      alert('Error. Check console')
-      throw new Error(error);
-    })
+      .then(() => {
+        alert('Succeed');
+      })
+      .catch((error) => {
+        alert('Error. Check console');
+        throw new Error(error);
+      });
   };
 
   // Render the application DOM.
@@ -130,7 +130,6 @@ export const StudyApp = ({ basename, notifications, data, http }: StudyAppDeps) 
                         id="study.congratulationsTitle"
                         defaultMessage="Congratulations, you have successfully created a new Kibana Plugin!"
                       />
-
                     </h2>
                   </EuiTitle>
                 </EuiPageContentHeader>
@@ -143,9 +142,9 @@ export const StudyApp = ({ basename, notifications, data, http }: StudyAppDeps) 
                       />
                     </p>
                     <EuiHorizontalRule />
-                    <EuiFlexGroup gutterSize='l' style={{ width: 300 }} alignItems='center'>
+                    <EuiFlexGroup gutterSize="l" style={{ width: 300 }} alignItems="center">
                       <EuiFlexItem grow={1}>
-                        <EuiIcon type='annotation' color={color} size='xxl' title='node-1' />
+                        <EuiIcon type="annotation" color={color} size="xxl" title="node-1" />
                         <EuiText>AP Server</EuiText>
                       </EuiFlexItem>
                       <EuiFlexItem grow={1}>
