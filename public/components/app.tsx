@@ -8,10 +8,11 @@ import { PLUGIN_ID, PLUGIN_NAME } from '../../common';
 
 import {
   DataPublicPluginStart,
-  IndexPattern,
   ISearchSource,
   SortDirection,
 } from '../../../../src/plugins/data/public';
+
+import { DataView } from '../../../../src/plugins/data_views/common';
 
 import {
   EuiButton,
@@ -29,43 +30,27 @@ import {
   EuiIcon,
 } from '@elastic/eui';
 
-interface StudyAppDeps {
+interface RestartingAppDeps {
   basename: string;
   notifications: CoreStart['notifications'];
   data: DataPublicPluginStart;
   http: CoreStart['http'];
 }
 
-export const StudyApp = ({ basename, notifications, data, http }: StudyAppDeps) => {
-  // console.log('rendered');
+export const RestartingApp = ({ basename, notifications, data, http }: RestartingAppDeps) => {
   let searchSource: ISearchSource;
-  let indexPattern: IndexPattern | undefined;
+  let dataView: DataView | undefined;
 
-  // Create searchSource and find index patterns.
-  const call = async () => {
-    searchSource = await data.search.searchSource.create();
-    [indexPattern] = await data.indexPatterns.find(Config.indexPattern);
-  };
-
-  call();
   // Use React hooks to manage state.
   // const [hits, setHits] = useState<Array<Record<string, any>>>();
   const [color, setColor] = useState<string>(Config.color.default);
 
-  // Use useEffect function to manage the lifecycle.
+  // Create searchSource and find index patterns.
   useEffect(() => {
-    data.query.timefilter.timefilter.setRefreshInterval({
-      pause: false,
-      value: Config.refreshIntervalValue,
-    });
-    // autoRefreshFetch$ makes a stream every {refreshInterval.value} milliseconds.
-    const autoRefreshFetch$ = data.query.timefilter.timefilter.getAutoRefreshFetch$();
-
-    // Query object must have language property with either 'lucene' or 'kuery'.
-    // Lucene represents QueryDSL, the other does ESQuery.
-    autoRefreshFetch$.subscribe(() => {
-      searchSource
-        .setField('index', indexPattern)
+    const call = async () => {
+      [dataView] = await data.dataViews.find(Config.dataView);
+      searchSource = (await data.search.searchSource.create())
+        .setField('index', dataView)
         .setField('size', 1)
         .setField('query', {
           query: {
@@ -75,19 +60,48 @@ export const StudyApp = ({ basename, notifications, data, http }: StudyAppDeps) 
           },
           language: 'lucene',
         })
-        .setField('sort', { '@timestamp': SortDirection.desc })
-        .fetch()
-        .then((response) => {
-          // setHits(res.hits.hits);
-          setColor(
-            response.hits.hits[0]._source.summary.up === 1 ? Config.color.up : Config.color.down
-          );
-        });
-    });
-    // This return phrase is called when the element is unmounted from DOM.
-    return () => {
-      data.query.timefilter.timefilter.setRefreshInterval({ pause: true });
+        .setField('sort', { '@timestamp': SortDirection.desc });
     };
+    call().then(() => {
+      data.query.timefilter.timefilter.setRefreshInterval({
+        pause: false,
+        value: 5000,
+      });
+      const autoRefreshFetch$ = data.query.timefilter.timefilter.getAutoRefreshFetch$();
+      autoRefreshFetch$.subscribe(
+        (next) => {
+          const search$ = searchSource.fetch$();
+          search$.subscribe(
+            (done) => {
+              setColor(
+                done.rawResponse.hits.hits[0]._source.summary.up === 1
+                  ? Config.color.up
+                  : Config.color.down
+              );
+            },
+            (e) => {
+              throw Error(e);
+            },
+            () => {}
+          );
+          next();
+        },
+        (e) => {
+          throw Error(e);
+        },
+        () => {}
+        // .then((response) => {
+        //   // setHits(res.hits.hits);
+        //   setColor(
+        //     response.hits.hits[0]._source.summary.up === 1 ? Config.color.up : Config.color.down
+        //   );
+        // });
+      );
+    });
+
+    return () => {
+      data.query.timefilter.timefilter.setRefreshInterval({ value: 0 });
+    }
   }, []);
 
   const onClickHandler = () => {

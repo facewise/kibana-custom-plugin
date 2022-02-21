@@ -1,13 +1,13 @@
 import { i18n } from '@kbn/i18n';
 import { AppMountParameters, CoreSetup, CoreStart, Plugin } from '../../../src/core/public';
-import { StudyPluginSetup, StudyPluginStart, AppPluginStartDependencies } from './types';
+import { RestartingPluginSetup, RestartingPluginStart, AppPluginStartDependencies } from './types';
 import { PLUGIN_NAME } from '../common';
 
-export class StudyPlugin implements Plugin<StudyPluginSetup, StudyPluginStart> {
-  public setup(core: CoreSetup): StudyPluginSetup {
+export class RestartingPlugin implements Plugin<RestartingPluginSetup, RestartingPluginStart> {
+  public setup(core: CoreSetup): RestartingPluginSetup {
     // Register an application into the side navigation menu
     core.application.register({
-      id: 'study',
+      id: 'restarting',
       title: PLUGIN_NAME,
       async mount(params: AppMountParameters) {
         // Load application bundle
@@ -32,7 +32,7 @@ export class StudyPlugin implements Plugin<StudyPluginSetup, StudyPluginStart> {
     };
   }
 
-  public start(core: CoreStart): StudyPluginStart {
+  public start(core: CoreStart): RestartingPluginStart {
     return {};
   }
 

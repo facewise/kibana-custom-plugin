@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { AppMountParameters, CoreStart } from '../../../src/core/public';
 import { AppPluginStartDependencies } from './types';
-import { StudyApp } from './components/app';
+import { RestartingApp } from './components/app';
 
 export const renderApp = (
   { notifications, http }: CoreStart,
@@ -10,7 +10,7 @@ export const renderApp = (
   { appBasePath, element }: AppMountParameters
 ) => {
   ReactDOM.render(
-    <StudyApp
+    <RestartingApp
       basename={appBasePath}
       notifications={notifications}
       data={data}
@@ -21,7 +21,5 @@ export const renderApp = (
 
   return () => {
     ReactDOM.unmountComponentAtNode(element);
-    // Setting refreshInterval.pause to true stops auto-fetching.
-    data.query.timefilter.timefilter.setRefreshInterval({ pause: true })
   };
 };
