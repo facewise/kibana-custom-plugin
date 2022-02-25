@@ -1,12 +1,12 @@
 const Config = {
-  dataView: 'heartbeat-7.11.1*',
+  dataView: 'heartbeat-7.17.0-*',
   color: {
-    default: '#999999',
+    default: 'grey',
     up: 'green',
     down: 'red',
   },
   refreshIntervalValue: 5000,
-  monitor: ['192.168.88.142'],
+  monitor: ['192.168.87.45'],
 };
 
 export default Config;

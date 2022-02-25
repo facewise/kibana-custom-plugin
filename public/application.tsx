@@ -21,5 +21,5 @@ export const renderApp = (
 
   return () => {
     ReactDOM.unmountComponentAtNode(element);
-  };
-};
+  }
+}

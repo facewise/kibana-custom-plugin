@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { i18n } from '@kbn/i18n';
 import { FormattedMessage, I18nProvider } from '@kbn/i18n/react';
 import { BrowserRouter as Router } from 'react-router-dom';
-import { Config } from '../../config';
 import { CoreStart } from '../../../../src/core/public';
-import { PLUGIN_ID, PLUGIN_NAME } from '../../common';
+import { PLUGIN_NAME } from '../../common'
+import { Config } from '../../config';
 
 import {
   DataPublicPluginStart,
@@ -28,7 +28,7 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiIcon,
-} from '@elastic/eui';
+} from '@elastic/eui'
 
 interface RestartingAppDeps {
   basename: string;
@@ -39,19 +39,18 @@ interface RestartingAppDeps {
 
 export const RestartingApp = ({ basename, notifications, data, http }: RestartingAppDeps) => {
   let searchSource: ISearchSource;
-  let dataView: DataView | undefined;
+  let dataView: DataView;
 
   // Use React hooks to manage state.
-  // const [hits, setHits] = useState<Array<Record<string, any>>>();
   const [color, setColor] = useState<string>(Config.color.default);
-
-  // Create searchSource and find index patterns.
+  //Create search source and find index patterns (->data views).
   useEffect(() => {
     const call = async () => {
       [dataView] = await data.dataViews.find(Config.dataView);
       searchSource = (await data.search.searchSource.create())
         .setField('index', dataView)
         .setField('size', 1)
+        .setField('sort', { '@timestamp': SortDirection.desc })
         .setField('query', {
           query: {
             match: {
@@ -59,8 +58,7 @@ export const RestartingApp = ({ basename, notifications, data, http }: Restartin
             },
           },
           language: 'lucene',
-        })
-        .setField('sort', { '@timestamp': SortDirection.desc });
+        });
     };
     call().then(() => {
       data.query.timefilter.timefilter.setRefreshInterval({
@@ -82,20 +80,14 @@ export const RestartingApp = ({ basename, notifications, data, http }: Restartin
             (e) => {
               throw Error(e);
             },
-            () => {}
+            () => { }
           );
           next();
         },
         (e) => {
           throw Error(e);
         },
-        () => {}
-        // .then((response) => {
-        //   // setHits(res.hits.hits);
-        //   setColor(
-        //     response.hits.hits[0]._source.summary.up === 1 ? Config.color.up : Config.color.down
-        //   );
-        // });
+        () => { }
       );
     });
 
@@ -104,17 +96,28 @@ export const RestartingApp = ({ basename, notifications, data, http }: Restartin
     }
   }, []);
 
-  const onClickHandler = () => {
+  const onClickJenkinsHandler = () => {
     fetch('http://192.168.88.142:9090/buildByToken/build?job=study&token=PLEASERESTART', {
       method: 'POST',
       mode: 'no-cors',
     })
       .then(() => {
-        alert('Succeed');
+        notifications.toasts.addSuccess('Succeed');
       })
-      .catch((error) => {
-        alert('Error. Check console');
-        throw new Error(error);
+      .catch((e) => {
+        notifications.toasts.addDanger('Error occured');
+        throw Error(e);
+      });
+  };
+
+  const onClickScriptHandler = () => {
+    http.get('/api/restarting/ssh')
+      .then((res) => {
+        notifications.toasts.addSuccess('Succeed');
+      })
+      .catch((e) => {
+        notifications.toasts.addDanger('Error occured');
+        throw Error(e);
       });
   };
 
@@ -123,15 +126,15 @@ export const RestartingApp = ({ basename, notifications, data, http }: Restartin
     <Router basename={basename}>
       <I18nProvider>
         <>
-          <EuiPage restrictWidth="1000px">
+          <EuiPage restrictWidth="800px">
             <EuiPageBody>
               <EuiPageHeader>
-                <EuiTitle size="l">
+                <EuiTitle size='l'>
                   <h1>
                     <FormattedMessage
-                      id="study.helloWorldText"
-                      defaultMessage="{id},{name}"
-                      values={{ id: PLUGIN_ID, name: PLUGIN_NAME }}
+                      id="restarting.title"
+                      defaultMessage="{name} plugin"
+                      values={{ name: PLUGIN_NAME }}
                     />
                   </h1>
                 </EuiTitle>
@@ -140,40 +143,32 @@ export const RestartingApp = ({ basename, notifications, data, http }: Restartin
                 <EuiPageContentHeader>
                   <EuiTitle>
                     <h2>
-                      <FormattedMessage
-                        id="study.congratulationsTitle"
-                        defaultMessage="Congratulations, you have successfully created a new Kibana Plugin!"
-                      />
+                      <p>
+                        <FormattedMessage
+                          id="restarting.subTitle"
+                          defaultMessage="If you click button, Kibana connects the server via SSH and execute command."
+                        />
+                      </p>
                     </h2>
+
                   </EuiTitle>
                 </EuiPageContentHeader>
                 <EuiPageContentBody>
-                  <EuiText>
-                    <p>
-                      <FormattedMessage
-                        id="study.content"
-                        defaultMessage="Look through the generated code and check out the plugin development documentation."
-                      />
-                    </p>
-                    <EuiHorizontalRule />
-                    <EuiFlexGroup gutterSize="l" style={{ width: 300 }} alignItems="center">
-                      <EuiFlexItem grow={1}>
-                        <EuiIcon type="annotation" color={color} size="xxl" title="node-1" />
-                        <EuiText>AP Server</EuiText>
-                      </EuiFlexItem>
-                      <EuiFlexItem grow={1}>
-                        <EuiButton type="primary" size="s" onClick={onClickHandler}>
-                          <FormattedMessage id="study.buttonText" defaultMessage="Click me" />
-                        </EuiButton>
-                      </EuiFlexItem>
-                    </EuiFlexGroup>
-                  </EuiText>
-                  {/* <p>
-                    <pre>
-                      {JSON.stringify(hits, null, 2)}
-                    </pre>
-                  </p> */}
+                  <EuiHorizontalRule />
+                  <EuiFlexGroup gutterSize='l' style={{ width: 300 }} alignItems="center">
+                    <EuiFlexItem grow={1}>
+                      <EuiIcon type="annotation" color={color} size="xxl" title="AP Server" />
+                      <EuiText>AP Server</EuiText>
+                    </EuiFlexItem>
+                    <EuiFlexItem grow={1}>
+                      <EuiButton type="primary" size="s" onClick={onClickScriptHandler}>
+                        <FormattedMessage id="restarting.buttonText" defaultMessage="Execute shell script" />
+                      </EuiButton>
+                    </EuiFlexItem>
+                  </EuiFlexGroup>
                 </EuiPageContentBody>
+
+
               </EuiPageContent>
             </EuiPageBody>
           </EuiPage>

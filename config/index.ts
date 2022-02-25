@@ -1,3 +1,3 @@
-import Config from "./default";
+import Config from './default';
 
 export { Config };
