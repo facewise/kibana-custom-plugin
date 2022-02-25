@@ -1,12 +1,12 @@
-import {
+import { 
   PluginInitializerContext,
   CoreSetup,
-  CoreStart,
   Plugin,
   Logger,
-} from '../../../src/core/server';
+  CoreStart,
+} from "../../../src/core/server";
 
-import { RestartingPluginSetup, RestartingPluginStart } from './types';
+import { RestartingPluginSetup, RestartingPluginStart } from "./types";
 import { defineRoutes } from './routes';
 
 export class RestartingPlugin implements Plugin<RestartingPluginSetup, RestartingPluginStart> {
