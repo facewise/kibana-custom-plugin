@@ -1,8 +1,12 @@
 {
-  "id": "example",
-  "version": "1.1.0",
+  "id": "restarting",
+  "version": "1.0.0",
   "kibanaVersion": "kibana",
-  "server": false,
+  "owner": {
+    "name": "facewise"
+  },
+  "description": "Monitors servers and has buttons for restarting them.",
+  "server": true,
   "ui": true,
   "requiredPlugins": ["data"],
   "optionalPlugins": []

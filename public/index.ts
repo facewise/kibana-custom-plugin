@@ -1,10 +1,10 @@
 import './index.scss';
 
-import { StudyPlugin } from './plugin';
+import { RestartingPlugin } from './plugin';
 
 // This exports static code and TypeScript types,
 // as well as, Kibana Platform `plugin()` initializer.
 export function plugin() {
-  return new StudyPlugin();
+  return new RestartingPlugin();
 }
-export { StudyPluginSetup, StudyPluginStart } from './types';
+export { RestartingPluginSetup, RestartingPluginStart } from './types';

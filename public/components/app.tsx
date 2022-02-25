@@ -2,16 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { i18n } from '@kbn/i18n';
 import { FormattedMessage, I18nProvider } from '@kbn/i18n/react';
 import { BrowserRouter as Router } from 'react-router-dom';
-import { Config } from '../../config';
 import { CoreStart } from '../../../../src/core/public';
-import { PLUGIN_ID, PLUGIN_NAME } from '../../common';
+import { PLUGIN_NAME } from '../../common'
+import { Config } from '../../config';
 
 import {
   DataPublicPluginStart,
-  IndexPattern,
   ISearchSource,
   SortDirection,
 } from '../../../../src/plugins/data/public';
+
+import { DataView } from '../../../../src/plugins/data_views/common';
 
 import {
   EuiButton,
@@ -27,46 +28,29 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiIcon,
-} from '@elastic/eui';
+} from '@elastic/eui'
 
-interface StudyAppDeps {
+interface RestartingAppDeps {
   basename: string;
   notifications: CoreStart['notifications'];
   data: DataPublicPluginStart;
   http: CoreStart['http'];
 }
 
-export const StudyApp = ({ basename, notifications, data, http }: StudyAppDeps) => {
-  // console.log('rendered');
+export const RestartingApp = ({ basename, notifications, data, http }: RestartingAppDeps) => {
   let searchSource: ISearchSource;
-  let indexPattern: IndexPattern | undefined;
+  let dataView: DataView;
 
-  // Create searchSource and find index patterns.
-  const call = async () => {
-    searchSource = await data.search.searchSource.create();
-    [indexPattern] = await data.indexPatterns.find(Config.indexPattern);
-  };
-
-  call();
   // Use React hooks to manage state.
-  // const [hits, setHits] = useState<Array<Record<string, any>>>();
   const [color, setColor] = useState<string>(Config.color.default);
-
-  // Use useEffect function to manage the lifecycle.
+  //Create search source and find index patterns (->data views).
   useEffect(() => {
-    data.query.timefilter.timefilter.setRefreshInterval({
-      pause: false,
-      value: Config.refreshIntervalValue,
-    });
-    // autoRefreshFetch$ makes a stream every {refreshInterval.value} milliseconds.
-    const autoRefreshFetch$ = data.query.timefilter.timefilter.getAutoRefreshFetch$();
-
-    // Query object must have language property with either 'lucene' or 'kuery'.
-    // Lucene represents QueryDSL, the other does ESQuery.
-    autoRefreshFetch$.subscribe(() => {
-      searchSource
-        .setField('index', indexPattern)
+    const call = async () => {
+      [dataView] = await data.dataViews.find(Config.dataView);
+      searchSource = (await data.search.searchSource.create())
+        .setField('index', dataView)
         .setField('size', 1)
+        .setField('sort', { '@timestamp': SortDirection.desc })
         .setField('query', {
           query: {
             match: {
@@ -74,33 +58,66 @@ export const StudyApp = ({ basename, notifications, data, http }: StudyAppDeps) 
             },
           },
           language: 'lucene',
-        })
-        .setField('sort', { '@timestamp': SortDirection.desc })
-        .fetch()
-        .then((response) => {
-          // setHits(res.hits.hits);
-          setColor(
-            response.hits.hits[0]._source.summary.up === 1 ? Config.color.up : Config.color.down
-          );
         });
-    });
-    // This return phrase is called when the element is unmounted from DOM.
-    return () => {
-      data.query.timefilter.timefilter.setRefreshInterval({ pause: true });
     };
+    call().then(() => {
+      data.query.timefilter.timefilter.setRefreshInterval({
+        pause: false,
+        value: 5000,
+      });
+      const autoRefreshFetch$ = data.query.timefilter.timefilter.getAutoRefreshFetch$();
+      autoRefreshFetch$.subscribe(
+        (next) => {
+          const search$ = searchSource.fetch$();
+          search$.subscribe(
+            (done) => {
+              setColor(
+                done.rawResponse.hits.hits[0]._source.summary.up === 1
+                  ? Config.color.up
+                  : Config.color.down
+              );
+            },
+            (e) => {
+              throw Error(e);
+            },
+            () => { }
+          );
+          next();
+        },
+        (e) => {
+          throw Error(e);
+        },
+        () => { }
+      );
+    });
+
+    return () => {
+      data.query.timefilter.timefilter.setRefreshInterval({ value: 0 });
+    }
   }, []);
 
-  const onClickHandler = () => {
+  const onClickJenkinsHandler = () => {
     fetch('http://192.168.88.142:9090/buildByToken/build?job=study&token=PLEASERESTART', {
       method: 'POST',
       mode: 'no-cors',
     })
       .then(() => {
-        alert('Succeed');
+        notifications.toasts.addSuccess('Succeed');
       })
-      .catch((error) => {
-        alert('Error. Check console');
-        throw new Error(error);
+      .catch((e) => {
+        notifications.toasts.addDanger('Error occured');
+        throw Error(e);
+      });
+  };
+
+  const onClickScriptHandler = () => {
+    http.get('/api/restarting/ssh')
+      .then((res) => {
+        notifications.toasts.addSuccess('Succeed');
+      })
+      .catch((e) => {
+        notifications.toasts.addDanger('Error occured');
+        throw Error(e);
       });
   };
 
@@ -109,15 +126,15 @@ export const StudyApp = ({ basename, notifications, data, http }: StudyAppDeps) 
     <Router basename={basename}>
       <I18nProvider>
         <>
-          <EuiPage restrictWidth="1000px">
+          <EuiPage restrictWidth="800px">
             <EuiPageBody>
               <EuiPageHeader>
-                <EuiTitle size="l">
+                <EuiTitle size='l'>
                   <h1>
                     <FormattedMessage
-                      id="study.helloWorldText"
-                      defaultMessage="{id},{name}"
-                      values={{ id: PLUGIN_ID, name: PLUGIN_NAME }}
+                      id="restarting.title"
+                      defaultMessage="{name} plugin"
+                      values={{ name: PLUGIN_NAME }}
                     />
                   </h1>
                 </EuiTitle>
@@ -126,40 +143,32 @@ export const StudyApp = ({ basename, notifications, data, http }: StudyAppDeps) 
                 <EuiPageContentHeader>
                   <EuiTitle>
                     <h2>
-                      <FormattedMessage
-                        id="study.congratulationsTitle"
-                        defaultMessage="Congratulations, you have successfully created a new Kibana Plugin!"
-                      />
+                      <p>
+                        <FormattedMessage
+                          id="restarting.subTitle"
+                          defaultMessage="If you click button, Kibana connects the server via SSH and execute command."
+                        />
+                      </p>
                     </h2>
+
                   </EuiTitle>
                 </EuiPageContentHeader>
                 <EuiPageContentBody>
-                  <EuiText>
-                    <p>
-                      <FormattedMessage
-                        id="study.content"
-                        defaultMessage="Look through the generated code and check out the plugin development documentation."
-                      />
-                    </p>
-                    <EuiHorizontalRule />
-                    <EuiFlexGroup gutterSize="l" style={{ width: 300 }} alignItems="center">
-                      <EuiFlexItem grow={1}>
-                        <EuiIcon type="annotation" color={color} size="xxl" title="node-1" />
-                        <EuiText>AP Server</EuiText>
-                      </EuiFlexItem>
-                      <EuiFlexItem grow={1}>
-                        <EuiButton type="primary" size="s" onClick={onClickHandler}>
-                          <FormattedMessage id="study.buttonText" defaultMessage="Click me" />
-                        </EuiButton>
-                      </EuiFlexItem>
-                    </EuiFlexGroup>
-                  </EuiText>
-                  {/* <p>
-                    <pre>
-                      {JSON.stringify(hits, null, 2)}
-                    </pre>
-                  </p> */}
+                  <EuiHorizontalRule />
+                  <EuiFlexGroup gutterSize='l' style={{ width: 300 }} alignItems="center">
+                    <EuiFlexItem grow={1}>
+                      <EuiIcon type="annotation" color={color} size="xxl" title="AP Server" />
+                      <EuiText>AP Server</EuiText>
+                    </EuiFlexItem>
+                    <EuiFlexItem grow={1}>
+                      <EuiButton type="primary" size="s" onClick={onClickScriptHandler}>
+                        <FormattedMessage id="restarting.buttonText" defaultMessage="Execute shell script" />
+                      </EuiButton>
+                    </EuiFlexItem>
+                  </EuiFlexGroup>
                 </EuiPageContentBody>
+
+
               </EuiPageContent>
             </EuiPageBody>
           </EuiPage>
