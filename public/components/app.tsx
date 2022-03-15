@@ -1,21 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { i18n } from '@kbn/i18n';
+import React, { useState, useEffect } from 'react';
 import { FormattedMessage, I18nProvider } from '@kbn/i18n/react';
 import { BrowserRouter as Router } from 'react-router-dom';
-import { CoreStart } from '../../../../src/core/public';
-import { PLUGIN_NAME } from '../../common'
-import { Config } from '../../config';
+import { MonitorTable } from './monitor_table';
+
+import { DataPublicPluginStart } from '../../../../src/plugins/data/public';
 
 import {
-  DataPublicPluginStart,
-  ISearchSource,
-  SortDirection,
-} from '../../../../src/plugins/data/public';
-
-import { DataView } from '../../../../src/plugins/data_views/common';
-
-import {
-  EuiButton,
   EuiHorizontalRule,
   EuiPage,
   EuiPageBody,
@@ -24,116 +14,90 @@ import {
   EuiPageContentHeader,
   EuiPageHeader,
   EuiTitle,
-  EuiText,
-  EuiFlexGroup,
-  EuiFlexItem,
-  EuiIcon,
-} from '@elastic/eui'
+} from '@elastic/eui';
 
-interface RestartingAppDeps {
+import { CoreStart } from '../../../../src/core/public';
+
+import { PLUGIN_NAME } from '../../common';
+
+interface TestAppDeps {
   basename: string;
   notifications: CoreStart['notifications'];
-  data: DataPublicPluginStart;
   http: CoreStart['http'];
+  data: DataPublicPluginStart;
 }
 
-export const RestartingApp = ({ basename, notifications, data, http }: RestartingAppDeps) => {
-  let searchSource: ISearchSource;
-  let dataView: DataView;
 
+
+const areArraysEqual = (a: Array<string>, b: Array<string>): boolean => {
+  return a.length === b.length && a.every((val, index) => val === b[index]);
+};
+
+export const TestApp = ({ basename, notifications, http, data }: TestAppDeps) => {
   // Use React hooks to manage state.
-  const [color, setColor] = useState<string>(Config.color.default);
-  //Create search source and find index patterns (->data views).
-  useEffect(() => {
-    const call = async () => {
-      [dataView] = await data.dataViews.find(Config.dataView);
-      searchSource = (await data.search.searchSource.create())
-        .setField('index', dataView)
-        .setField('size', 1)
-        .setField('sort', { '@timestamp': SortDirection.desc })
-        .setField('query', {
-          query: {
-            match: {
-              'monitor.ip': Config.monitor[0],
-            },
-          },
-          language: 'lucene',
-        });
-    };
-    call().then(() => {
-      data.query.timefilter.timefilter.setRefreshInterval({
-        pause: false,
-        value: 5000,
-      });
-      const autoRefreshFetch$ = data.query.timefilter.timefilter.getAutoRefreshFetch$();
-      autoRefreshFetch$.subscribe(
-        (next) => {
-          const search$ = searchSource.fetch$();
-          search$.subscribe(
-            (done) => {
-              setColor(
-                done.rawResponse.hits.hits[0]._source.summary.up === 1
-                  ? Config.color.up
-                  : Config.color.down
-              );
-            },
-            (e) => {
-              throw Error(e);
-            },
-            () => { }
-          );
-          next();
-        },
-        (e) => {
-          throw Error(e);
-        },
-        () => { }
-      );
+  const [targets, setTargets] = useState<Array<string>>([]);
+
+  let _intervalId: NodeJS.Timeout;
+
+  const getTargets = async () => {
+    return await http.post('http://open-distro:9200/_opendistro/_sql', {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: getQueryString(new Date()),
+      }),
     });
+  };
+
+  const getQueryString = (date: Date) => {
+    const today = date.toISOString().substring(0, 10);
+    const yesterday = new Date(date.setDate(date.getDate() - 1)).toISOString().substring(0, 10);
+  
+    return (
+      `SELECT DISTINCT url.full FROM logstash-index-test* ` +
+      `WHERE DATE(@timestamp)=DATE('${today}') OR ` +
+      `DATE(@timestamp)=DATE('${yesterday}')`
+    );
+  };
+
+  const refreshTargets = () => {
+    getTargets().then((res) => {
+      let newArray = [];
+      for (let i = 0; i < res.datarows.length; i++) {
+        newArray.push(res.datarows[i][0]);
+      }
+      if (!areArraysEqual(targets, newArray)) {
+        setTargets(newArray);
+      }
+    })
+    .catch((e) => {
+      console.error(e);
+    });
+  };
+
+  useEffect(() => {
+    refreshTargets();
+    _intervalId = setInterval(refreshTargets, 5000);
 
     return () => {
-      data.query.timefilter.timefilter.setRefreshInterval({ value: 0 });
-    }
-  }, []);
-
-  const onClickJenkinsHandler = () => {
-    fetch('http://192.168.88.142:9090/buildByToken/build?job=study&token=PLEASERESTART', {
-      method: 'POST',
-      mode: 'no-cors',
-    })
-      .then(() => {
-        notifications.toasts.addSuccess('Succeed');
-      })
-      .catch((e) => {
-        notifications.toasts.addDanger('Error occured');
-        throw Error(e);
-      });
-  };
-
-  const onClickScriptHandler = () => {
-    http.get('/api/restarting/ssh')
-      .then((res) => {
-        notifications.toasts.addSuccess('Succeed');
-      })
-      .catch((e) => {
-        notifications.toasts.addDanger('Error occured');
-        throw Error(e);
-      });
-  };
+      clearInterval(_intervalId);
+    };
+  }, [targets]);
 
   // Render the application DOM.
   return (
     <Router basename={basename}>
       <I18nProvider>
         <>
-          <EuiPage restrictWidth="800px">
+          <EuiPage restrictWidth="1000px">
             <EuiPageBody>
               <EuiPageHeader>
-                <EuiTitle size='l'>
+                <EuiTitle size="l">
                   <h1>
                     <FormattedMessage
-                      id="restarting.title"
-                      defaultMessage="{name} plugin"
+                      id="test.helloWorldText"
+                      defaultMessage="{name}"
                       values={{ name: PLUGIN_NAME }}
                     />
                   </h1>
@@ -145,30 +109,17 @@ export const RestartingApp = ({ basename, notifications, data, http }: Restartin
                     <h2>
                       <p>
                         <FormattedMessage
-                          id="restarting.subTitle"
+                          id="test.subTitle"
                           defaultMessage="If you click button, Kibana connects the server via SSH and execute command."
                         />
                       </p>
                     </h2>
-
                   </EuiTitle>
                 </EuiPageContentHeader>
                 <EuiPageContentBody>
                   <EuiHorizontalRule />
-                  <EuiFlexGroup gutterSize='l' style={{ width: 300 }} alignItems="center">
-                    <EuiFlexItem grow={1}>
-                      <EuiIcon type="annotation" color={color} size="xxl" title="AP Server" />
-                      <EuiText>AP Server</EuiText>
-                    </EuiFlexItem>
-                    <EuiFlexItem grow={1}>
-                      <EuiButton type="primary" size="s" onClick={onClickScriptHandler}>
-                        <FormattedMessage id="restarting.buttonText" defaultMessage="Execute shell script" />
-                      </EuiButton>
-                    </EuiFlexItem>
-                  </EuiFlexGroup>
+                  <MonitorTable data={data} props={targets} />
                 </EuiPageContentBody>
-
-
               </EuiPageContent>
             </EuiPageBody>
           </EuiPage>

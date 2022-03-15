@@ -1,3 +1,4 @@
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface RestartingPluginSetup {}
-export interface RestartingPluginStart {}
+export interface TestPluginSetup {}
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface TestPluginStart {}

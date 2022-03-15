@@ -1,23 +1,23 @@
-import { 
+import {
   PluginInitializerContext,
   CoreSetup,
+  CoreStart,
   Plugin,
   Logger,
-  CoreStart,
-} from "../../../src/core/server";
+} from '../../../src/core/server';
 
-import { RestartingPluginSetup, RestartingPluginStart } from "./types";
+import { TestPluginSetup, TestPluginStart } from './types';
 import { defineRoutes } from './routes';
 
-export class RestartingPlugin implements Plugin<RestartingPluginSetup, RestartingPluginStart> {
-  private readonly logger: Logger;
+export class TestPlugin implements Plugin<TestPluginSetup, TestPluginStart> {
+  logger: Logger;
 
   constructor(initializerContext: PluginInitializerContext) {
     this.logger = initializerContext.logger.get();
   }
 
   public setup(core: CoreSetup) {
-    this.logger.debug('restarting: Setup');
+    this.logger.debug('test: Setup');
     const router = core.http.createRouter();
 
     // Register server side APIs
@@ -27,7 +27,7 @@ export class RestartingPlugin implements Plugin<RestartingPluginSetup, Restartin
   }
 
   public start(core: CoreStart) {
-    this.logger.debug('restarting: Started');
+    this.logger.debug('test: Started');
     return {};
   }
 

@@ -1,11 +1,7 @@
 {
-  "id": "restarting",
-  "version": "1.0.0",
+  "id": "testPlugin",
+  "version": "1.1.0",
   "kibanaVersion": "kibana",
-  "owner": {
-    "name": "facewise"
-  },
-  "description": "Monitors servers and has buttons for restarting them.",
   "server": true,
   "ui": true,
   "requiredPlugins": ["data"],

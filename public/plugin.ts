@@ -1,13 +1,13 @@
 import { i18n } from '@kbn/i18n';
 import { AppMountParameters, CoreSetup, CoreStart, Plugin } from '../../../src/core/public';
-import { RestartingPluginSetup, RestartingPluginStart, AppPluginStartDependencies } from './types';
+import { TestPluginSetup, TestPluginStart, AppPluginStartDependencies } from './types';
 import { PLUGIN_NAME } from '../common';
 
-export class RestartingPlugin implements Plugin<RestartingPluginSetup, RestartingPluginStart> {
-  public setup(core: CoreSetup): RestartingPluginSetup {
+export class TestPlugin implements Plugin<TestPluginSetup, TestPluginStart> {
+  public setup(core: CoreSetup): TestPluginSetup {
     // Register an application into the side navigation menu
     core.application.register({
-      id: 'restarting',
+      id: 'test',
       title: PLUGIN_NAME,
       async mount(params: AppMountParameters) {
         // Load application bundle
@@ -22,7 +22,7 @@ export class RestartingPlugin implements Plugin<RestartingPluginSetup, Restartin
     // Return methods that should be available to other plugins
     return {
       getGreeting() {
-        return i18n.translate('study.greetingText', {
+        return i18n.translate('test.greetingText', {
           defaultMessage: 'Hello from {name}!',
           values: {
             name: PLUGIN_NAME,
@@ -32,11 +32,9 @@ export class RestartingPlugin implements Plugin<RestartingPluginSetup, Restartin
     };
   }
 
-  public start(core: CoreStart): RestartingPluginStart {
+  public start(core: CoreStart): TestPluginStart {
     return {};
   }
 
-  public stop() {
-    
-  }
+  public stop() {}
 }

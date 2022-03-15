@@ -1,11 +1,11 @@
-import { PluginInitializerContext } from "../../../src/core/server";
-import { RestartingPlugin } from './plugin';
+import { PluginInitializerContext } from '../../../src/core/server';
+import { TestPlugin } from './plugin';
 
-//   This exports static code and TypeScript types,
-//   as well as, Kibana Platform `plugin()` initializer.
+//  This exports static code and TypeScript types,
+//  as well as, Kibana Platform `plugin()` initializer.
 
 export function plugin(initializerContext: PluginInitializerContext) {
-  return new RestartingPlugin(initializerContext);
+  return new TestPlugin(initializerContext);
 }
 
-export { RestartingPluginSetup, RestartingPluginStart } from './types';
+export { TestPluginSetup, TestPluginStart } from './types';

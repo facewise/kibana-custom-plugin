@@ -1,2 +1,2 @@
-export const PLUGIN_ID = 'restarting';
-export const PLUGIN_NAME = 'restarting';
+export const PLUGIN_ID = 'test';
+export const PLUGIN_NAME = 'test';

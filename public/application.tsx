@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { AppMountParameters, CoreStart } from '../../../src/core/public';
 import { AppPluginStartDependencies } from './types';
-import { RestartingApp } from './components/app';
+import { TestApp } from './components/app';
 
 export const renderApp = (
   { notifications, http }: CoreStart,
@@ -10,16 +10,14 @@ export const renderApp = (
   { appBasePath, element }: AppMountParameters
 ) => {
   ReactDOM.render(
-    <RestartingApp
+    <TestApp
       basename={appBasePath}
       notifications={notifications}
-      data={data}
       http={http}
+      data={data}
     />,
     element
   );
 
-  return () => {
-    ReactDOM.unmountComponentAtNode(element);
-  }
-}
+  return () => ReactDOM.unmountComponentAtNode(element);
+};
